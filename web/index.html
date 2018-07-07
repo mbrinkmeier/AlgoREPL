@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <style type="text/css">
+            BODY {
+                width: 100vw;
+                height: 100vh;
+                overflow: hidden;
+            }
+            #header {
+                position: fixed;
+                top: 0px;
+                left: 0px;
+                right: 0px;
+                height: 50px;
+                background-color: #d0d0d0;
+            }
+            #footer {
+                position: fixed;
+                bottom: 0px;
+                left: 0px;
+                right: 0px;
+                height: 50px;
+                background-color: #d0d0d0;    
+            }
+            #main {
+                position: fixed;
+                bottom: 50px;
+                top: 50px;
+                left: 0px;
+                right: 0px;
+            }
+            #source {
+                font-family: monospace;
+                font-size: 16px;
+            }
+            #Console{
+                border-style : groove;
+            }
+            DIV.button {
+                height: 100%;
+                border-style: outset;
+                background-color: #d0d0d0;
+                text-align: center;
+                vertical-align: middle;
+                line-height: 25px;
+                font-family: sans;
+            }
+            DIV.button:hover {
+                background-color: #e0e0e0;
+            }
+            DIV.button:active {
+                border-style: inset;
+            }
+            DIV.statusbar {
+                background-color: #e0e0e0;
+                font-family: sans;
+                font-size: 16px;
+                padding: 0px;
+            }
+            DIV.statusbar SPAN {
+                border-right: 2px white solid;
+                text-align: center;
+                padding: 0px 5px 0px 5px;
+                line-height: 22px;
+                vertical-align: middle;
+            }
+        </style>
+        <script type="text/javascript" src="js/Console.js"></script>
+        <script type="text/javascript" src="js/Splitter.js"></script>
+        <script type="text/javascript">
+            var webSocket;
+            var splitter;
+            var con;
+            var source;
+            
+            function init() {
+                splitter = new Splitter(document.getElementById('main'), "");
+                con = new Console(document.getElementById('Console'));
+                source = document.getElementById("source");
+
+                document.addEventListener("keyread", function (event) {
+                });
+
+                document.addEventListener("lineread", function (event) {
+                    webSocket.send(event.line);
+                    con.readline();
+                });
+
+                con.print('Dies ist ein Prompt : ');
+                con.readline(); //  function(test) { console.log(".." + test); } );
+            }
+
+
+            function compile() {
+                // Ensures only one connection is open at a time
+                if (webSocket !== undefined && webSocket.readyState !== WebSocket.CLOSED) {
+                    writeResponse("WebSocket is already opened.");
+                    return;
+                }
+                // Create a new instance of the websocket
+                webSocket = new WebSocket("ws://localhost:8080/AlgoREPL/compile?" + encodeURI(source.value));
+                writeResponse("WebSocket opened");
+                setConnStatus("CON");
+                
+                /**
+                 * Binds functions to the listeners for the websocket.
+                 */
+                webSocket.onopen = function (event) {
+                    // For reasons I can't determine, onopen gets called twice
+                    // and the first time event.data is undefined.
+                    // Leave a comment if you know the answer.
+                    if (event.data === undefined)
+                        return;
+
+                    writeResponse(event.data);
+                };
+
+                webSocket.onmessage = function (event) {
+                    writeResponse(event.data);
+                };
+
+                webSocket.onclose = function (event) {
+                    writeResponse("Connection closed");
+                };
+                
+            }
+
+            /**
+             * Sends the value of the text input to the server
+             */
+            function send() {
+                var text = document.getElementById("messageinput").value;
+                webSocket.send(text);
+            }
+
+            function reset() {
+                webSocket.close();
+                setConnStatus("DIS");
+            }
+
+            function writeResponse(text) {
+                con.println(text);
+                con.print("> ");
+            }
+
+            function setConnStatus(text) {
+                var span = document.getElementById("ConnStatus");
+                if (span) span.textContent = text;
+            }
+        </script>
+        <title>WebCompiler</title>
+    </head>
+    <body onload="init();">
+        <div id="header">
+        </div>
+        <div id="main">
+            <div id=".topleft">
+                <div style="left: 10px; right: 10px; top: 10px; bottom: 70px; position: absolute;">
+                    <textarea id="source" style="width:100%; height: 100%; position: relative; border: etched;" title="Source code editor"></textarea>
+-                </div>
+                <div style="left: 10px; right: 5px; bottom: 40px; height: 20px; position: absolute;" class="statusbar">
+                    <span id="ConnStatus" style="font-weight: bold;">DIS</span>    
+                </div>
+                <div style="left: 10px; right: 10px; bottom: 10px; height: 25px; position: absolute;">
+                <div style="position:absolute; left:0%; width: 18%;">
+                    <div class="button" title="Compile code" style="width:100%" onclick="compile()">Compile</div>
+                </div>
+                <div  style="position:absolute; left:20%; width: 18%;">
+                    <div class="button" title="Reset" style="width:100%" onclick="reset()">Reset</div>
+                </div>
+                <div  style="position:absolute; left:40%; width: 18%;">
+                    <div class="button" title="Load" style="width:100%" onclick="">Load</div>
+                </div>
+                <div  style="position:absolute; left:60%; width: 18%;">
+                    <div class="button" title="Save" style="width:100%" onclick="">Save</div>
+                </div>
+                </div>
+            </div>
+            <div id=".topright"></div>
+            <div id=".bottomleft">
+                <div style="top:10px; bottom: 10px; left: 10px; right: 10px; position: absolute;">
+                    <div  style="width: 100%; height: 100%" title="In- and output console" id="Console">
+                    </div>
+                </div>
+            </div>
+            <div id=".bottomright"></div>
+        </div> 
+        <div id="footer">
+        </div>
+    </body>
+</html>
